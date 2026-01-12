@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalProductPrice) modalProductPrice.textContent = productData.priceFormatted || '';
     if (modalProductUnit) modalProductUnit.textContent = '/' + (productData.unit || 'kg');
     if (modalQuantity) modalQuantity.value = '1';
+    if (modalQuantity) modalQuantity.max = parseInt(productData.quantity || '0');
 
     updateModalTotal();
     modal.classList.remove('hidden');
@@ -152,16 +153,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (increaseBtn && modalQuantity) {
     increaseBtn.addEventListener('click', () => {
+      const maxQty = parseInt(currentProductData?.quantity) || Infinity;
       const current = parseInt(modalQuantity.value) || 1;
-      modalQuantity.value = current + 1;
+      if (current < maxQty) {
+        modalQuantity.value = current + 1;
+      } else {
+        modalQuantity.value = Math.max(1, maxQty);
+      }
       updateModalTotal();
     });
   }
 
   if (modalQuantity) {
     modalQuantity.addEventListener('input', () => {
-      const val = parseInt(modalQuantity.value) || 1;
-      if (val < 1) modalQuantity.value = 1;
+      const maxQty = parseInt(currentProductData?.quantity) || Infinity;
+      let val = parseInt(modalQuantity.value) || 1;
+      if (val < 1) val = 1;
+      if (Number.isFinite(maxQty) && val > maxQty) val = maxQty;
+      modalQuantity.value = val;
       updateModalTotal();
     });
   }
@@ -171,7 +180,12 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmBtn.addEventListener('click', async () => {
       if (!currentForm || !currentProductData) return;
 
+      const maxQty = parseInt(currentProductData?.quantity) || Infinity;
       const quantity = parseInt(modalQuantity.value) || 1;
+      if (Number.isFinite(maxQty) && quantity > maxQty) {
+        showToast(`Số lượng yêu cầu (${quantity}) vượt quá số lượng có trong kho (${maxQty}).`, true);
+        return;
+      }
       // Cache references BEFORE hiding modal (hideModal clears state)
       const formRef = currentForm;
       const url = formRef ? formRef.action : '';
@@ -243,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
         price: card.dataset.price || '0',
         unit: card.dataset.productUnit || 'kg',
         image: card.dataset.image || '',
+        quantity: card.dataset.productQuantity || '0',
       };
 
       showModal(productData, form);

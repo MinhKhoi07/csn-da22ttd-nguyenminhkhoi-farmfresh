@@ -214,7 +214,8 @@
                         data-category-id="{{ $product->category_id }}" 
                         data-product-name="{{ $product->name }}"
                         data-product-id="{{ $product->id }}"
-                        data-image="{{ $product->image ? Storage::url($product->image) : '' }}">
+                        data-image="{{ $product->image ? Storage::url($product->image) : '' }}"
+                        data-product-quantity="{{ (int)($product->quantity ?? 0) }}">
                         
                         <!-- Discount Badge -->
                         <?php $discountPercent = round((($product->price - $product->discounted_price) / $product->price) * 100); ?>
@@ -251,6 +252,18 @@
                             </a>
                             <p class="text-xs text-gray-500 font-medium mb-2">{{ $product->category->name }}</p>
 
+                            <!-- Stock Status -->
+                            <div class="mb-3 p-2 rounded text-sm font-medium @if($product->quantity > 0) bg-green-50 text-green-700 @else bg-red-50 text-red-700 @endif">
+                                @if($product->quantity > 0)
+                                    📦 Còn {{ $product->quantity }}
+                                    @if($product->quantity < 5)
+                                        <span class="ml-1 bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-xs font-bold">Sắp hết</span>
+                                    @endif
+                                @else
+                                    ❌ Hết hàng
+                                @endif
+                            </div>
+
                             <!-- Giá gốc và giá giảm -->
                             <div class="flex items-center gap-3 mb-3">
                                 <span class="text-sm font-bold text-green-600">{{ number_format($product->discounted_price) }}đ/{{ $product->unit }}</span>
@@ -260,17 +273,21 @@
 
                             <!-- Hành động: Thêm và Mua ngay -->
                             <div class="flex items-center gap-2 mt-auto">
-                                <form class="flex-1" method="POST" action="{{ route('cart.add', $product->id) }}">
+                                <form class="flex-1" method="POST" action="{{ route('cart.add', $product->id) }}" @if($product->quantity == 0) onsubmit="return false;" @endif>
                                     @csrf
                                     <input type="hidden" name="quantity" value="1">
-                                    <button type="submit" class="w-full bg-green-600 text-white h-10 rounded-xl flex items-center justify-center hover:bg-green-700 transition shadow-lg shadow-green-200 active:scale-95 group/btn font-semibold" title="Thêm vào giỏ">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                        </svg>
-                                        Thêm
+                                    <button type="submit" class="w-full h-10 rounded-xl flex items-center justify-center transition shadow-lg active:scale-95 group/btn font-semibold @if($product->quantity == 0) bg-gray-400 text-white cursor-not-allowed @else bg-green-600 text-white hover:bg-green-700 shadow-green-200 @endif" title="{{ $product->quantity == 0 ? 'Hết hàng' : 'Thêm vào giỏ' }}" @if($product->quantity == 0) disabled @endif>
+                                        @if($product->quantity == 0)
+                                            ❌ Hết hàng
+                                        @else
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                            </svg>
+                                            Thêm
+                                        @endif
                                     </button>
                                 </form>
-                                <a href="{{ route('cart.buy_now', $product->id) }}?quantity=1" class="h-10 px-4 rounded-xl border border-green-600 text-green-700 bg-white hover:bg-green-50 font-semibold text-sm transition active:scale-95 flex items-center whitespace-nowrap" title="Mua ngay">
+                                <a href="{{ route('cart.buy_now', $product->id) }}?quantity=1" class="h-10 px-4 rounded-xl border border-green-600 text-green-700 bg-white hover:bg-green-50 font-semibold text-sm transition active:scale-95 flex items-center whitespace-nowrap @if($product->quantity == 0) opacity-50 pointer-events-none @endif" title="Mua ngay">
                                     Mua ngay
                                 </a>
                             </div>
@@ -362,7 +379,8 @@
                         data-product-price="{{ number_format($product->has_promotion && $product->discounted_price ? $product->discounted_price : $product->price) }}"
                         data-product-unit="{{ $product->unit }}"
                         data-product-id="{{ $product->id }}"
-                        data-image="{{ $product->image ? Storage::url($product->image) : '' }}">
+                        data-image="{{ $product->image ? Storage::url($product->image) : '' }}"
+                        data-product-quantity="{{ (int)($product->quantity ?? 0) }}">
                         
                         <!-- Product Image - Clickable Link -->
                         <a href="{{ route('products.show', $product->id) }}" class="relative h-64 overflow-hidden bg-gray-100 block group">
@@ -401,6 +419,18 @@
                             </a>
                             
                             <div class="mt-auto pt-4 border-t border-gray-100">
+                                <!-- Stock Status -->
+                                <div class="mb-4 p-2.5 rounded-lg text-sm font-medium @if($product->quantity > 0) bg-green-50 text-green-700 @else bg-red-50 text-red-700 @endif">
+                                    @if($product->quantity > 0)
+                                        📦 Còn {{ $product->quantity }} {{ $product->unit }}
+                                        @if($product->quantity < 5)
+                                            <span class="ml-1 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-bold">Sắp hết</span>
+                                        @endif
+                                    @else
+                                        ❌ Hết hàng
+                                    @endif
+                                </div>
+
                                 <div class="flex justify-between items-end mb-4">
                                     <div class="flex flex-col">
                                         <span class="text-xs text-gray-400 font-medium">Giá bán</span>
@@ -426,17 +456,21 @@
                                 
                                 <!-- Action Buttons -->
                                 <div class="flex items-center gap-2">
-                                    <form class="js-add-to-cart-form flex-1" method="POST" action="{{ route('cart.add', $product->id) }}">
+                                    <form class="js-add-to-cart-form flex-1" method="POST" action="{{ route('cart.add', $product->id) }}" @if($product->quantity == 0) onsubmit="return false;" @endif>
                                         @csrf
                                         <input type="hidden" name="quantity" value="1">
-                                        <button type="submit" class="w-full bg-green-600 text-white h-10 rounded-xl flex items-center justify-center hover:bg-green-700 transition shadow-lg shadow-green-200 active:scale-95 group/btn font-semibold" title="Thêm vào giỏ">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                                            </svg>
-                                            Thêm
+                                        <button type="submit" class="w-full h-10 rounded-xl flex items-center justify-center transition shadow-lg active:scale-95 group/btn font-semibold @if($product->quantity == 0) bg-gray-400 text-white cursor-not-allowed @else bg-green-600 text-white hover:bg-green-700 shadow-green-200 @endif" title="{{ $product->quantity == 0 ? 'Hết hàng' : 'Thêm vào giỏ' }}" @if($product->quantity == 0) disabled @endif>
+                                            @if($product->quantity == 0)
+                                                ❌ Hết hàng
+                                            @else
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                                Thêm
+                                            @endif
                                         </button>
                                     </form>
-                                    <a href="{{ route('cart.buy_now', $product->id) }}?quantity=1" class="h-10 px-4 rounded-xl border border-green-600 text-green-700 bg-white hover:bg-green-50 font-semibold text-sm transition active:scale-95 flex items-center whitespace-nowrap" title="Mua ngay">
+                                    <a href="{{ route('cart.buy_now', $product->id) }}?quantity=1" class="h-10 px-4 rounded-xl border border-green-600 text-green-700 bg-white hover:bg-green-50 font-semibold text-sm transition active:scale-95 flex items-center whitespace-nowrap @if($product->quantity == 0) opacity-50 pointer-events-none @endif" title="Mua ngay">
                                         Mua ngay
                                     </a>
                                 </div>

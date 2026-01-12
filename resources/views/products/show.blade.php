@@ -90,6 +90,23 @@
                     </div>
                 </div>
 
+                <!-- Stock Status -->
+                <div class="@if($product->quantity > 0) bg-green-50 border border-green-200 @else bg-red-50 border border-red-200 @endif rounded-lg p-4">
+                    <p class="text-sm @if($product->quantity > 0) text-green-600 @else text-red-600 @endif font-medium">📦 Số lượng kho</p>
+                    <div class="flex items-center justify-between mt-2">
+                        <p class="text-lg font-semibold @if($product->quantity > 0) text-green-900 @else text-red-900 @endif">
+                            @if($product->quantity > 0)
+                                Còn <span class="text-2xl font-extrabold">{{ $product->quantity }}</span> {{ $product->unit }}
+                            @else
+                                <span class="text-red-700 font-bold">Hết hàng</span>
+                            @endif
+                        </p>
+                        @if($product->quantity < 5 && $product->quantity > 0)
+                            <span class="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-semibold">Sắp hết</span>
+                        @endif
+                    </div>
+                </div>
+
                 <!-- Origin -->
                 @if($product->origin)
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -107,18 +124,24 @@
                 @endif
 
                 <!-- Add to Cart Button -->
-                <form class="js-add-to-cart-form" method="POST" action="{{ route('cart.add', $product->id) }}">
+                <form class="js-add-to-cart-form" method="POST" action="{{ route('cart.add', $product->id) }}" data-max-quantity="{{ $product->quantity ?? 0 }}">
                     @csrf
                     <div class="flex gap-4">
-                        <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
-                            <button type="button" data-qty-dec class="px-4 py-3 hover:bg-gray-100 font-bold text-lg transition">−</button>
-                            <input type="number" name="quantity" value="1" min="1" step="1" data-qty-input 
+                        <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white @if($product->quantity == 0) opacity-50 @endif">
+                            <button type="button" data-qty-dec class="px-4 py-3 hover:bg-gray-100 font-bold text-lg transition" @if($product->quantity == 0) disabled @endif>−</button>
+                            <input type="number" name="quantity" value="1" min="1" max="{{ $product->quantity ?? 0 }}" step="1" data-qty-input 
                                 class="w-16 text-center border-none outline-none font-bold text-lg py-3 appearance-none" 
-                                style="-moz-appearance: textfield; appearance: textfield;">
-                            <button type="button" data-qty-inc class="px-4 py-3 hover:bg-gray-100 font-bold text-lg transition">+</button>
+                                style="-moz-appearance: textfield; appearance: textfield;"
+                                @if($product->quantity == 0) disabled @endif>
+                            <button type="button" data-qty-inc class="px-4 py-3 hover:bg-gray-100 font-bold text-lg transition" @if($product->quantity == 0) disabled @endif>+</button>
                         </div>
-                        <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-lg">
-                            🛒 Thêm vào giỏ
+                        <button type="submit" class="flex-1 @if($product->quantity == 0) bg-gray-400 cursor-not-allowed @else bg-green-600 hover:bg-green-700 @endif text-white font-bold py-3 px-6 rounded-lg transition shadow-lg"
+                            @if($product->quantity == 0) disabled @endif>
+                            @if($product->quantity == 0)
+                                ❌ Hết hàng
+                            @else
+                                🛒 Thêm vào giỏ
+                            @endif
                         </button>
                     </div>
                 </form>
@@ -159,6 +182,8 @@
     <script>
         // Quantity control handlers
         document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('.js-add-to-cart-form');
+            const maxQuantity = parseInt(form.dataset.maxQuantity || 0);
             const input = document.querySelector('[data-qty-input]');
             const incBtn = document.querySelector('[data-qty-inc]');
             const decBtn = document.querySelector('[data-qty-dec]');
@@ -166,24 +191,51 @@
             if (input && incBtn && decBtn) {
                 const clampValue = (value) => {
                     const parsed = Number.parseInt(value, 10);
-                    return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+                    let clamped = Number.isNaN(parsed) || parsed < 1 ? 1 : parsed;
+                    // Limit by max quantity
+                    if (clamped > maxQuantity) {
+                        clamped = maxQuantity;
+                    }
+                    return clamped;
+                };
+
+                const updateButtonStates = () => {
+                    const current = clampValue(input.value);
+                    // Disable + button if at max quantity
+                    incBtn.disabled = current >= maxQuantity;
+                    incBtn.classList.toggle('opacity-50', current >= maxQuantity);
+                    incBtn.classList.toggle('cursor-not-allowed', current >= maxQuantity);
+                    
+                    // Disable - button if at min quantity
+                    decBtn.disabled = current <= 1;
+                    decBtn.classList.toggle('opacity-50', current <= 1);
+                    decBtn.classList.toggle('cursor-not-allowed', current <= 1);
                 };
 
                 incBtn.addEventListener('click', () => {
-                    input.value = clampValue(input.value) + 1;
+                    const current = clampValue(input.value);
+                    if (current < maxQuantity) {
+                        input.value = current + 1;
+                        updateButtonStates();
+                    }
                 });
 
                 decBtn.addEventListener('click', () => {
-                    const next = clampValue(input.value) - 1;
-                    input.value = next < 1 ? 1 : next;
+                    const current = clampValue(input.value);
+                    if (current > 1) {
+                        input.value = current - 1;
+                        updateButtonStates();
+                    }
                 });
 
                 input.addEventListener('input', () => {
                     input.value = clampValue(input.value);
+                    updateButtonStates();
                 });
 
                 // Ensure initial value is valid
                 input.value = clampValue(input.value || 1);
+                updateButtonStates();
             }
         });
 
@@ -191,6 +243,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.querySelector('.js-add-to-cart-form');
             if (!form) return;
+            
+            const maxQuantity = parseInt(form.dataset.maxQuantity || 0);
 
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
@@ -198,6 +252,18 @@
                 const formData = new FormData(this);
                 const submitBtn = this.querySelector('button[type="submit"]');
                 const originalText = submitBtn.innerHTML;
+                const quantity = Number.parseInt(formData.get('quantity'), 10);
+                
+                // Validate quantity before submitting
+                if (quantity > maxQuantity) {
+                    alert(`Số lượng yêu cầu (${quantity}) vượt quá số lượng có trong kho (${maxQuantity} {{ $product->unit }}). Vui lòng giảm số lượng.`);
+                    return;
+                }
+                
+                if (quantity < 1) {
+                    alert('Vui lòng nhập số lượng hợp lệ (tối thiểu 1).');
+                    return;
+                }
                 
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '⏳ Đang thêm...';
@@ -220,6 +286,13 @@
 
                     if (response.status === 401) {
                         window.location.href = (data && data.redirect) ? data.redirect : '/login';
+                        return;
+                    }
+
+                    if (response.status === 400 && data.status === 'error') {
+                        alert(data.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
                         return;
                     }
 

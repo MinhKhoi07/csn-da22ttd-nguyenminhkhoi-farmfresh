@@ -54,10 +54,34 @@ class CartController extends Controller
         }
 
         $quantity = max(1, (int) $request->input('quantity', 1));
+        
+        // Check if quantity exceeds available stock
+        if ($quantity > $product->quantity) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Số lượng yêu cầu ({$quantity}) vượt quá số lượng có trong kho ({$product->quantity} {$product->unit}). Vui lòng giảm số lượng.",
+                ], 400);
+            }
+            return redirect()->back()->with('error', "Số lượng yêu cầu ({$quantity}) vượt quá số lượng có trong kho ({$product->quantity} {$product->unit}). Vui lòng giảm số lượng.");
+        }
+
         $cart = $this->getCart();
 
         if (isset($cart[$product->id])) {
-            $cart[$product->id]['quantity'] += $quantity;
+            $newQuantity = $cart[$product->id]['quantity'] + $quantity;
+            // Check if total quantity exceeds available stock
+            if ($newQuantity > $product->quantity) {
+                $remainingQuantity = $product->quantity - $cart[$product->id]['quantity'];
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Số lượng tổng ({$newQuantity}) vượt quá số lượng có trong kho ({$product->quantity} {$product->unit}). Hiện có {$remainingQuantity} {$product->unit} còn lại.",
+                    ], 400);
+                }
+                return redirect()->back()->with('error', "Số lượng tổng ({$newQuantity}) vượt quá số lượng có trong kho ({$product->quantity} {$product->unit}). Hiện có {$remainingQuantity} {$product->unit} còn lại.");
+            }
+            $cart[$product->id]['quantity'] = $newQuantity;
         } else {
             // Sử dụng giá giảm nếu có khuyến mãi
             $price = $product->has_promotion && $product->discounted_price 
@@ -96,6 +120,11 @@ class CartController extends Controller
     {
         $quantity = (int) $request->input('quantity', 1);
         $quantity = $quantity < 1 ? 1 : $quantity;
+
+        // Check if quantity exceeds available stock
+        if ($quantity > $product->quantity) {
+            return redirect()->route('cart.index')->with('error', "Số lượng yêu cầu ({$quantity}) vượt quá số lượng có trong kho ({$product->quantity} {$product->unit}).");
+        }
 
         $cart = $this->getCart();
         if (isset($cart[$product->id])) {
